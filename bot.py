@@ -23,10 +23,10 @@ YTDL_REGEX = (r"^((?:https?:)?\/\/)"
 s2tw = OpenCC('s2tw.json').convert
 
 
-@bot.on_message(filters.command("start"))
+@Jebot.on_message(filters.command("start"))
 async def start(client, message):
    if message.chat.type == 'private':
-       await Jebot.send_message(
+       await client.send_message(
                chat_id=message.chat.id,
                text="""<b>Hello! This is a YouTube Uploader Bot
 
@@ -47,10 +47,11 @@ Hit help button to find out more about how to use me</b>""",
             disable_web_page_preview=True,        
             parse_mode="html")
 
-@bot.on_message(filters.command("help"))
+
+@Jebot.on_message(filters.command("help"))
 async def help(client, message):
     if message.chat.type == 'private':   
-        await Jebot.send_message(
+        await client.send_message(
                chat_id=message.chat.id,
                text="""<b>YouTube Bot Help!
 
@@ -71,10 +72,11 @@ Just send a Youtube url to download it in video or audio format!
             disable_web_page_preview=True,        
             parse_mode="html")
 
-@bot.on_message(filters.command("about"))
+
+@Jebot.on_message(filters.command("about"))
 async def about(client, message):
     if message.chat.type == 'private':   
-        await Jebot.send_message(
+        await client.send_message(
                chat_id=message.chat.id,
                text="""<b>About TeleRoid YouTube Bot!</b>
 
@@ -104,11 +106,11 @@ async def about(client, message):
 
 # https://docs.pyrogram.org/start/examples/bot_keyboards
 # Reply with inline keyboard
-@bot.on_message(filters.private
+@Jebot.on_message(filters.private
                    & filters.text
                    & ~filters.edited
                    & filters.regex(YTDL_REGEX))
-async def ytdl_with_button(_, message: Message):
+async def ytdl_with_button(client, message: Message):
     await message.reply_text(
         "**Choose download type👇**",
         reply_markup=InlineKeyboardMarkup(
@@ -129,8 +131,8 @@ async def ytdl_with_button(_, message: Message):
     )
 
 
-@bot.on_callback_query(filters.regex("^ytdl_audio$"))
-async def callback_query_ytdl_audio(_, callback_query):
+@Jebot.on_callback_query(filters.regex("^ytdl_audio$"))
+async def callback_query_ytdl_audio(client, callback_query):
     try:
         url = callback_query.message.reply_to_message.text
         ydl_opts = {
@@ -147,15 +149,14 @@ async def callback_query_ytdl_audio(_, callback_query):
             ydl.process_info(info_dict)
             # upload
             audio_file = ydl.prepare_filename(info_dict)
-            task = asyncio.create_task(send_audio(message, info_dict,
-                                                  audio_file))
+            task = asyncio.create_task(send_audio(message, info_dict, audio_file))
             while not task.done():
                 await asyncio.sleep(3)
                 await message.reply_chat_action("upload_document")
             await message.reply_chat_action("cancel")
             await message.delete()
     except Exception as e:
-        await message.reply_text(e)
+        await callback_query.message.reply_text(str(e))
     await callback_query.message.reply_to_message.delete()
     await callback_query.message.delete()
 
@@ -170,8 +171,7 @@ if Config.AUDIO_THUMBNAIL == "No":
            audio_file = audio_file_weba
        # thumbnail
        thumbnail_url = info_dict['thumbnail']
-       thumbnail_file = basename + "." + \
-           get_file_extension_from_url(thumbnail_url)
+       thumbnail_file = basename + "." + get_file_extension_from_url(thumbnail_url)
        # info (s2tw)
        webpage_url = info_dict['webpage_url']
        title = s2tw(info_dict['title'])
@@ -207,10 +207,10 @@ else:
        os.remove(audio_file)
        os.remove(thumbnail_file)
 
-@bot.on_callback_query(filters.regex("^ytdl_video$"))
-async def callback_query_ytdl_video(_, callback_query):
+
+@Jebot.on_callback_query(filters.regex("^ytdl_video$"))
+async def callback_query_ytdl_video(client, callback_query):
     try:
-        # url = callback_query.message.text
         url = callback_query.message.reply_to_message.text
         ydl_opts = {
             'format': 'best[ext=mp4]',
@@ -222,19 +222,18 @@ async def callback_query_ytdl_video(_, callback_query):
             await message.reply_chat_action("typing")
             info_dict = ydl.extract_info(url, download=False)
             # download
-            await callback_query.edit_message_text("**Downloading video...**")
+                        await callback_query.edit_message_text("**Downloading video...**")
             ydl.process_info(info_dict)
             # upload
             video_file = ydl.prepare_filename(info_dict)
-            task = asyncio.create_task(send_video(message, info_dict,
-                                                  video_file))
+            task = asyncio.create_task(send_video(message, info_dict, video_file))
             while not task.done():
                 await asyncio.sleep(3)
                 await message.reply_chat_action("upload_document")
             await message.reply_chat_action("cancel")
             await message.delete()
     except Exception as e:
-        await message.reply_text(e)
+        await callback_query.message.reply_text(str(e))
     await callback_query.message.reply_to_message.delete()
     await callback_query.message.delete()
 
@@ -243,8 +242,7 @@ if Config.VIDEO_THUMBNAIL == "No":
       basename = video_file.rsplit(".", 1)[-2]
       # thumbnail
       thumbnail_url = info_dict['thumbnail']
-      thumbnail_file = basename + "." + \
-          get_file_extension_from_url(thumbnail_url)
+      thumbnail_file = basename + "." + get_file_extension_from_url(thumbnail_url)
       # info (s2tw)
       webpage_url = info_dict['webpage_url']
       title = s2tw(info_dict['title'])
@@ -308,18 +306,18 @@ def get_resolution(info_dict):
     return (width, height)
 
 
-@bot.on_callback_query()
-async def button(bot, update):
+@Jebot.on_callback_query()
+async def button(client, update):
       cb_data = update.data
       if "help" in cb_data:
         await update.message.delete()
-        await help(bot, update.message)
+        await help(client, update.message)
       elif "about" in cb_data:
         await update.message.delete()
-        await about(bot, update.message)
+        await about(client, update.message)
       elif "start" in cb_data:
         await update.message.delete()
-        await start(bot, update.message)
+        await start(client, update.message)
 
 print(
     """
@@ -329,3 +327,4 @@ Join **@TGRobot_List**
 )
 
 Jebot.run()
+      
